@@ -548,7 +548,7 @@
       <div>
         <span class="viz-kicker">30-year simulation</span>
         <h3 class="viz-title">Risk doesn't buy back time</h3>
-        <p class="viz-subtitle">Each run starts with $10,000 and makes no monthly contributions. Blue compounds at a disciplined 15%/yr; red chases a higher headline return with much higher volatility and deeper drawdowns.</p>
+        <p class="viz-subtitle">Each run starts with $10,000 and makes no monthly contributions. Paths are sampled month by month: blue targets 15%/yr with lower volatility, while red converts a 30% headline return into monthly log returns, then subtracts drag, volatility drag, and random stress drawdowns.</p>
       </div>
       <div class="viz-actions">
         <label class="viz-scale-toggle">
@@ -569,9 +569,9 @@
     </div>
 
     <div class="viz-legend" aria-hidden="true">
-      <span class="viz-legend-item"><span class="viz-swatch steady"></span>~15%/yr disciplined outcomes</span>
+      <span class="viz-legend-item"><span class="viz-swatch steady"></span>~15%/yr disciplined outcomes (diversified portfolios)</span>
       <span class="viz-legend-item"><span class="viz-swatch steady median"></span>~15%/yr disciplined median</span>
-      <span class="viz-legend-item"><span class="viz-swatch risk"></span>high-risk outcomes</span>
+      <span class="viz-legend-item"><span class="viz-swatch risk"></span>high-risk outcomes (FOMO trading)</span>
       <span class="viz-legend-item"><span class="viz-swatch risk median"></span>high-risk median</span>
     </div>
 
@@ -785,13 +785,13 @@ function buildDecadeBars(disciplined) {
     disciplined[20] - disciplined[10],
     disciplined[30] - disciplined[20]
   ];
-  const max = Math.max(...gains);
+  const totalGain = disciplined[30] - disciplined[0];
   const labels = ['years 1–10', 'years 11–20', 'years 21–30'];
   const fills = ['#aebbd0', resolvedColor('--viz-blue-mid', '#3978c2'), resolvedColor('--viz-blue', '#0047ab')];
   const el = document.getElementById('decBars');
   el.innerHTML = '';
   gains.forEach((g, i) => {
-    const pct = Math.round(g / max * 100);
+    const pct = Math.max(1, Math.round(g / totalGain * 100));
     const row = document.createElement('div');
     row.className = 'dec-row';
     row.innerHTML = `<span class="dec-label">${labels[i]}</span><div class="dec-track"><div class="dec-fill" style="width:${pct}%;background:${fills[i]};"></div></div><span class="dec-value">+${moneyShort(g)}</span>`;
@@ -1087,6 +1087,7 @@ function renderSim() {
           mode: 'index',
           intersect: false,
           filter: item => !item.dataset.label.startsWith('_'),
+          itemSort: (a, b) => b.parsed.y - a.parsed.y,
           backgroundColor: isDark ? 'rgba(9,21,37,0.94)' : 'rgba(247,250,255,0.96)',
           titleColor: text,
           bodyColor: text,
