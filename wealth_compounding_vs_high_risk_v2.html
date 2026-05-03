@@ -1,0 +1,835 @@
+<style>
+  .wealth-viz,
+  .wealth-viz * {
+    box-sizing: border-box;
+  }
+
+  .wealth-viz {
+    --viz-bg: color-mix(in srgb, var(--color-background, #f7f4ee) 88%, #ffffff);
+    --viz-panel: color-mix(in srgb, var(--color-background-secondary, #ffffff) 92%, #f5efe3);
+    --viz-panel-strong: color-mix(in srgb, var(--color-background-secondary, #ffffff) 82%, #eef7ef);
+    --viz-border: color-mix(in srgb, var(--color-border-tertiary, #d8d2c8) 78%, transparent);
+    --viz-text: var(--color-text-primary, #1f2520);
+    --viz-muted: var(--color-text-secondary, #697067);
+    --viz-faint: color-mix(in srgb, var(--viz-muted) 32%, transparent);
+    --viz-green: #2f7d45;
+    --viz-green-soft: rgba(47, 125, 69, 0.15);
+    --viz-risk: #bd4b45;
+    --viz-risk-soft: rgba(189, 75, 69, 0.13);
+    --viz-amber: #b8792a;
+    --viz-ink: #20251f;
+    width: 100%;
+    color: var(--viz-text);
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .wealth-viz {
+      --viz-bg: color-mix(in srgb, var(--color-background, #121411) 84%, #1d211b);
+      --viz-panel: color-mix(in srgb, var(--color-background-secondary, #171a16) 88%, #23281f);
+      --viz-panel-strong: color-mix(in srgb, var(--color-background-secondary, #171a16) 80%, #17301d);
+      --viz-border: color-mix(in srgb, var(--color-border-tertiary, #3b4039) 82%, transparent);
+      --viz-text: var(--color-text-primary, #f2f1ea);
+      --viz-muted: var(--color-text-secondary, #a7afa3);
+      --viz-faint: rgba(255, 255, 255, 0.13);
+      --viz-green: #74c482;
+      --viz-green-soft: rgba(116, 196, 130, 0.16);
+      --viz-risk: #ec7c73;
+      --viz-risk-soft: rgba(236, 124, 115, 0.15);
+      --viz-amber: #ddb06c;
+      --viz-ink: #f2f1ea;
+    }
+  }
+
+  .wealth-viz .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  .viz-shell {
+    border: 1px solid var(--viz-border);
+    border-radius: 8px;
+    background:
+      linear-gradient(180deg, color-mix(in srgb, var(--viz-panel) 86%, #ffffff) 0%, var(--viz-bg) 100%);
+    padding: clamp(16px, 2.5vw, 24px);
+    box-shadow: 0 20px 50px rgba(35, 39, 31, 0.08);
+    overflow: hidden;
+  }
+
+  .viz-topline {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 14px;
+  }
+
+  .viz-kicker {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    color: var(--viz-green);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0;
+    text-transform: uppercase;
+  }
+
+  .viz-kicker::before {
+    content: "";
+    width: 7px;
+    height: 7px;
+    border-radius: 999px;
+    background: var(--viz-green);
+    box-shadow: 0 0 0 4px var(--viz-green-soft);
+  }
+
+  .viz-title {
+    margin: 5px 0 5px;
+    font-size: 32px;
+    line-height: 1.05;
+    letter-spacing: 0;
+    font-weight: 750;
+  }
+
+  .viz-subtitle {
+    max-width: 680px;
+    margin: 0;
+    color: var(--viz-muted);
+    font-size: 14px;
+    line-height: 1.45;
+  }
+
+  .viz-reroll {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 38px;
+    border: 1px solid var(--viz-border);
+    border-radius: 8px;
+    background: var(--viz-panel);
+    color: var(--viz-text);
+    padding: 0 13px;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 650;
+    white-space: nowrap;
+    cursor: pointer;
+    box-shadow: 0 8px 20px rgba(31, 37, 32, 0.06);
+    transition: transform 150ms ease, border-color 150ms ease, background 150ms ease;
+  }
+
+  .viz-reroll:hover {
+    transform: translateY(-1px);
+    border-color: color-mix(in srgb, var(--viz-green) 52%, var(--viz-border));
+    background: var(--viz-panel-strong);
+  }
+
+  .viz-reroll:focus-visible {
+    outline: 2px solid var(--viz-green);
+    outline-offset: 3px;
+  }
+
+  .viz-legend {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin: 0 0 12px;
+  }
+
+  .viz-legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 28px;
+    border: 1px solid var(--viz-border);
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--viz-panel) 78%, transparent);
+    color: var(--viz-muted);
+    padding: 4px 10px;
+    font-size: 12px;
+    line-height: 1;
+  }
+
+  .viz-swatch {
+    display: inline-block;
+    width: 26px;
+    height: 3px;
+    border-radius: 999px;
+    background: var(--viz-muted);
+  }
+
+  .viz-swatch.steady {
+    height: 4px;
+    background: var(--viz-green);
+    box-shadow: 0 0 0 4px var(--viz-green-soft);
+  }
+
+  .viz-swatch.risk {
+    background: var(--viz-risk);
+    opacity: 0.62;
+  }
+
+  .viz-swatch.goal {
+    height: 0;
+    border-top: 2px dashed var(--viz-muted);
+    background: transparent;
+  }
+
+  .viz-chart-frame {
+    position: relative;
+    width: 100%;
+    height: clamp(320px, 46vw, 430px);
+    border: 1px solid var(--viz-border);
+    border-radius: 8px;
+    background:
+      linear-gradient(180deg, color-mix(in srgb, var(--viz-panel) 95%, #ffffff) 0%, var(--viz-panel) 100%);
+    padding: 12px 12px 8px;
+    overflow: hidden;
+  }
+
+  .viz-chart-frame::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background:
+      linear-gradient(90deg, transparent 0%, color-mix(in srgb, var(--viz-green) 8%, transparent) 68%, transparent 100%);
+    opacity: 0.65;
+  }
+
+  .viz-chart-frame canvas {
+    position: relative;
+    z-index: 1;
+  }
+
+  .viz-stats {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+    margin: 12px 0;
+  }
+
+  .viz-stat {
+    min-width: 0;
+    border: 1px solid var(--viz-border);
+    border-radius: 8px;
+    background: var(--viz-panel);
+    padding: 13px;
+  }
+
+  .viz-stat.goal {
+    background: linear-gradient(135deg, var(--viz-panel-strong), var(--viz-panel));
+  }
+
+  .viz-stat-label {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    margin: 0 0 5px;
+    color: var(--viz-muted);
+    font-size: 12px;
+    line-height: 1.25;
+  }
+
+  .viz-stat-label::before {
+    content: "";
+    width: 7px;
+    height: 7px;
+    border-radius: 999px;
+    background: var(--viz-muted);
+  }
+
+  .viz-stat.goal .viz-stat-label::before {
+    background: var(--viz-green);
+  }
+
+  .viz-stat.risk .viz-stat-label::before,
+  .viz-stat.best .viz-stat-label::before {
+    background: var(--viz-risk);
+  }
+
+  .viz-stat-value {
+    margin: 0;
+    color: var(--viz-ink);
+    font-size: 30px;
+    line-height: 1;
+    font-weight: 780;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .viz-stat-note {
+    margin: 7px 0 0;
+    color: var(--viz-muted);
+    font-size: 11px;
+    line-height: 1.35;
+  }
+
+  .viz-detail-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.1fr) minmax(280px, 0.9fr);
+    gap: 12px;
+  }
+
+  .viz-panel {
+    border: 1px solid var(--viz-border);
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--viz-panel) 92%, transparent);
+    padding: 15px;
+  }
+
+  .viz-panel-title {
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.25;
+    font-weight: 740;
+  }
+
+  .viz-panel-subtitle {
+    margin: 3px 0 13px;
+    color: var(--viz-muted);
+    font-size: 12px;
+    line-height: 1.35;
+  }
+
+  .dec-bars {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .dec-row {
+    display: grid;
+    grid-template-columns: 92px minmax(90px, 1fr) 58px;
+    align-items: center;
+    gap: 10px;
+    font-size: 12px;
+  }
+
+  .dec-label {
+    color: var(--viz-muted);
+    font-size: 11px;
+    line-height: 1.15;
+  }
+
+  .dec-track {
+    height: 22px;
+    border-radius: 6px;
+    background: color-mix(in srgb, var(--viz-muted) 11%, transparent);
+    overflow: hidden;
+  }
+
+  .dec-fill {
+    height: 100%;
+    border-radius: 6px;
+    background: var(--viz-green);
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.18);
+  }
+
+  .dec-value {
+    text-align: right;
+    color: var(--viz-text);
+    font-size: 12px;
+    font-weight: 680;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .recovery-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0 7px;
+    font-size: 13px;
+  }
+
+  .recovery-table th {
+    color: var(--viz-muted);
+    font-size: 11px;
+    font-weight: 650;
+    line-height: 1.2;
+    padding: 0 10px 2px;
+    text-align: left;
+    text-transform: uppercase;
+    letter-spacing: 0;
+  }
+
+  .recovery-table th:last-child,
+  .recovery-table td:last-child {
+    text-align: right;
+  }
+
+  .recovery-table td {
+    background: color-mix(in srgb, var(--viz-panel) 86%, var(--viz-bg));
+    border-top: 1px solid var(--viz-border);
+    border-bottom: 1px solid var(--viz-border);
+    padding: 9px 10px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .recovery-table td:first-child {
+    border-left: 1px solid var(--viz-border);
+    border-radius: 7px 0 0 7px;
+    color: var(--viz-risk);
+    font-weight: 720;
+  }
+
+  .recovery-table td:last-child {
+    border-right: 1px solid var(--viz-border);
+    border-radius: 0 7px 7px 0;
+    color: var(--viz-text);
+    font-weight: 720;
+  }
+
+  .recovery-table tr.stress td {
+    background: color-mix(in srgb, var(--viz-risk) 10%, var(--viz-panel));
+  }
+
+  @media (max-width: 720px) {
+    .viz-shell {
+      padding: 14px;
+    }
+
+    .viz-topline {
+      flex-direction: column;
+      align-items: stretch;
+    }
+
+    .viz-reroll {
+      width: 100%;
+    }
+
+    .viz-title {
+      font-size: 28px;
+    }
+
+    .viz-stat-value {
+      font-size: 27px;
+    }
+
+    .viz-chart-frame {
+      height: 340px;
+      padding: 8px 6px 6px;
+    }
+
+    .viz-stats,
+    .viz-detail-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  @media (max-width: 430px) {
+    .viz-title {
+      font-size: 24px;
+    }
+
+    .viz-stat-value {
+      font-size: 25px;
+    }
+
+    .viz-stat {
+      padding: 12px;
+    }
+
+    .dec-row {
+      grid-template-columns: 78px minmax(76px, 1fr) 52px;
+      gap: 8px;
+    }
+  }
+</style>
+
+<section class="wealth-viz">
+  <div class="viz-shell">
+    <h2 class="sr-only">Simulation comparing volatile steady 15% compounding versus high-risk strategies over 30 years</h2>
+
+    <div class="viz-topline">
+      <div>
+        <span class="viz-kicker">30-year simulation</span>
+        <h3 class="viz-title">Compounding rewards staying power</h3>
+        <p class="viz-subtitle">Each run starts with $10,000. The green path is a volatile 15% compounder; the red paths chase higher-risk returns and show how drawdowns can dominate the outcome.</p>
+      </div>
+      <button class="viz-reroll" onclick="runSim()" type="button" aria-label="Run a new random simulation">
+        <span>Roll again</span>
+        <span aria-hidden="true">↻</span>
+      </button>
+    </div>
+
+    <div class="viz-legend" aria-hidden="true">
+      <span class="viz-legend-item"><span class="viz-swatch steady"></span>steady ~15%/yr</span>
+      <span class="viz-legend-item"><span class="viz-swatch risk"></span>high-risk paths ×10</span>
+      <span class="viz-legend-item"><span class="viz-swatch goal"></span>goal</span>
+    </div>
+
+    <div class="viz-chart-frame">
+      <canvas id="wc" role="img" aria-label="Line chart: a volatile steady 15% per year portfolio typically outperforms high-risk paths despite both trending upward">Both paths grow, but steady 15% per year compounding with low volatility typically reaches about $662k after 30 years. High-risk paths trend upward but more slowly in median, with far wider variance.</canvas>
+    </div>
+
+    <div class="viz-stats">
+      <div class="viz-stat goal">
+        <p class="viz-stat-label">steady goal</p>
+        <p class="viz-stat-value">$662k</p>
+        <p class="viz-stat-note">15% compounded for 30 years</p>
+      </div>
+      <div class="viz-stat risk">
+        <p class="viz-stat-label">median high-risk</p>
+        <p class="viz-stat-value" id="medV">—</p>
+        <p class="viz-stat-note">middle result from this roll</p>
+      </div>
+      <div class="viz-stat best">
+        <p class="viz-stat-label">best high-risk</p>
+        <p class="viz-stat-value" id="bestV">—</p>
+        <p class="viz-stat-note">highest result from 10 paths</p>
+      </div>
+    </div>
+
+    <div class="viz-detail-grid">
+      <section class="viz-panel" aria-labelledby="gain-title">
+        <p class="viz-panel-title" id="gain-title">Where the gains happen</p>
+        <p class="viz-panel-subtitle">The last decade carries most of the dollar growth.</p>
+        <div id="decBars" class="dec-bars"></div>
+      </section>
+
+      <section class="viz-panel" aria-labelledby="trap-title">
+        <p class="viz-panel-title" id="trap-title">The recovery trap</p>
+        <p class="viz-panel-subtitle">A loss needs a larger percentage gain just to break even.</p>
+        <table class="recovery-table">
+          <thead>
+            <tr>
+              <th>if you lose</th>
+              <th>you need to gain</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>−10%</td><td>+11.1%</td>
+            </tr>
+            <tr>
+              <td>−25%</td><td>+33.3%</td>
+            </tr>
+            <tr class="stress">
+              <td>−50%</td><td>+100%</td>
+            </tr>
+            <tr class="stress">
+              <td>−75%</td><td>+300%</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+    </div>
+  </div>
+</section>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+let chart;
+const YRS = 30;
+const S0 = 10000;
+const isDark = matchMedia('(prefers-color-scheme: dark)').matches;
+const GOAL = Math.round(S0 * Math.pow(1.15, YRS));
+const vizRoot = document.querySelector('.wealth-viz');
+
+function resolvedColor(name, fallback) {
+  const probe = document.createElement('span');
+  probe.style.color = `var(${name}, ${fallback})`;
+  probe.style.position = 'absolute';
+  probe.style.pointerEvents = 'none';
+  probe.style.visibility = 'hidden';
+  vizRoot.appendChild(probe);
+  const value = getComputedStyle(probe).color;
+  probe.remove();
+  return value || fallback;
+}
+
+function withAlpha(color, alpha) {
+  const rgb = color.match(/rgba?\(([^)]+)\)/);
+  if (rgb) {
+    const parts = rgb[1].split(',').slice(0, 3).map(part => part.trim()).join(', ');
+    return `rgba(${parts}, ${alpha})`;
+  }
+  const hex = color.match(/^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i);
+  if (hex) {
+    const parts = hex.slice(1).map(part => parseInt(part, 16)).join(', ');
+    return `rgba(${parts}, ${alpha})`;
+  }
+  return color;
+}
+
+function money(value) {
+  return '$' + Math.round(value).toLocaleString();
+}
+
+function moneyShort(value) {
+  return '$' + Math.round(value / 1000).toLocaleString() + 'k';
+}
+
+function norm() {
+  let u=0,v=0;
+  while(!u) u=Math.random();
+  while(!v) v=Math.random();
+  return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v);
+}
+
+function steadyPath() {
+  // 15%/yr geometric target, ~12% annual vol — wiggles but trends strongly up
+  const annualVol = 0.12;
+  const sigma = annualVol / Math.sqrt(12);
+  const mu = (0.15 / 12) - 0.5 * sigma * sigma;
+  let v = S0;
+  const monthly = [v];
+  for (let m = 1; m <= YRS * 12; m++) {
+    v = Math.max(v * Math.exp(mu + sigma * norm()), 10);
+    monthly.push(v);
+  }
+  return Array.from({length: YRS + 1}, (_, y) => monthly[y * 12]);
+}
+
+function highRiskPath() {
+  // Geometric drift ~8%/yr, vol ~65% — goes up but far slower in median, huge swings
+  const annualVol = 0.65;
+  const sigma = annualVol / Math.sqrt(12);
+  // geometric target: 8%/yr  →  log mu = 0.08/12
+  const mu = 0.08 / 12;
+  let v = S0;
+  const monthly = [v];
+  let crash = 0;
+  for (let m = 1; m <= YRS * 12; m++) {
+    if (!crash && Math.random() < 0.010) crash = 4 + Math.floor(Math.random() * 6);
+    let r;
+    if (crash > 0) {
+      // sharp drawdown but not total wipeout — 8-14% monthly loss
+      r = -0.08 - Math.random() * 0.06;
+      crash--;
+    } else {
+      r = Math.exp(mu + sigma * norm()) - 1;
+    }
+    v = Math.max(v * (1 + r), 50);
+    monthly.push(v);
+  }
+  return Array.from({length: YRS + 1}, (_, y) => monthly[y * 12]);
+}
+
+function buildDecadeBars() {
+  const v0 = S0;
+  const v10 = S0 * Math.pow(1.15, 10);
+  const v20 = S0 * Math.pow(1.15, 20);
+  const v30 = S0 * Math.pow(1.15, 30);
+  const gains = [v10 - v0, v20 - v10, v30 - v20];
+  const max = Math.max(...gains);
+  const labels = ['years 1–10', 'years 11–20', 'years 21–30'];
+  const fills = ['#b9b6ac', resolvedColor('--viz-amber', '#b8792a'), resolvedColor('--viz-green', '#2f7d45')];
+  const el = document.getElementById('decBars');
+  el.innerHTML = '';
+  gains.forEach((g, i) => {
+    const pct = Math.round(g / max * 100);
+    const row = document.createElement('div');
+    row.className = 'dec-row';
+    row.innerHTML = `<span class="dec-label">${labels[i]}</span><div class="dec-track"><div class="dec-fill" style="width:${pct}%;background:${fills[i]};"></div></div><span class="dec-value">+${moneyShort(g)}</span>`;
+    el.appendChild(row);
+  });
+}
+
+function makeGradient(ctx, area, top, bottom) {
+  const gradient = ctx.createLinearGradient(0, area.top, 0, area.bottom);
+  gradient.addColorStop(0, top);
+  gradient.addColorStop(1, bottom);
+  return gradient;
+}
+
+function drawRoundedLabel(ctx, text, x, y, color) {
+  ctx.save();
+  ctx.font = '600 11px Inter, system-ui, sans-serif';
+  const width = ctx.measureText(text).width + 16;
+  const height = 22;
+  const left = Math.max(8, x - width - 4);
+  const top = y - height / 2;
+  ctx.fillStyle = isDark ? 'rgba(18, 20, 17, 0.82)' : 'rgba(255, 252, 245, 0.88)';
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 1;
+  roundedRect(ctx, left, top, width, height, 7);
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = color;
+  ctx.fillText(text, left + 8, top + 14);
+  ctx.restore();
+}
+
+function roundedRect(ctx, left, top, width, height, radius) {
+  const r = Math.min(radius, width / 2, height / 2);
+  ctx.beginPath();
+  if (ctx.roundRect) {
+    ctx.roundRect(left, top, width, height, r);
+    return;
+  }
+  ctx.moveTo(left + r, top);
+  ctx.lineTo(left + width - r, top);
+  ctx.quadraticCurveTo(left + width, top, left + width, top + r);
+  ctx.lineTo(left + width, top + height - r);
+  ctx.quadraticCurveTo(left + width, top + height, left + width - r, top + height);
+  ctx.lineTo(left + r, top + height);
+  ctx.quadraticCurveTo(left, top + height, left, top + height - r);
+  ctx.lineTo(left, top + r);
+  ctx.quadraticCurveTo(left, top, left + r, top);
+}
+
+function runSim() {
+  const labels = Array.from({length: YRS + 1}, (_, i) => i);
+  const steady = steadyPath();
+  const paths = Array.from({length: 10}, highRiskPath);
+  const finals = paths.map(p => p[YRS]).sort((a, b) => a - b);
+
+  document.getElementById('medV').textContent = money(finals[4]);
+  document.getElementById('bestV').textContent = money(finals[9]);
+
+  const green = resolvedColor('--viz-green', '#2f7d45');
+  const risk = resolvedColor('--viz-risk', '#bd4b45');
+  const muted = resolvedColor('--viz-muted', '#697067');
+  const text = resolvedColor('--viz-text', '#1f2520');
+  const border = resolvedColor('--viz-border', '#d8d2c8');
+  const textC = isDark ? 'rgba(242,241,234,0.68)' : 'rgba(31,37,32,0.58)';
+  const gridC = isDark ? 'rgba(255,255,255,0.07)' : 'rgba(31,37,32,0.075)';
+
+  const datasets = [
+    ...paths.map((path, i) => ({
+      data: path,
+      borderColor: withAlpha(risk, i % 3 === 0 ? 0.34 : 0.24),
+      borderWidth: i % 4 === 0 ? 1.8 : 1.35,
+      pointRadius: 0,
+      pointHoverRadius: 0,
+      fill: false,
+      tension: 0.24,
+      label: '_hr'
+    })),
+    {
+      label: 'goal ($662k)',
+      data: labels.map(() => GOAL),
+      borderColor: isDark ? 'rgba(242,241,234,0.38)' : 'rgba(105,112,103,0.52)',
+      borderWidth: 1.5,
+      borderDash: [7, 6],
+      pointRadius: 0,
+      fill: false
+    },
+    {
+      label: 'steady ~15%/yr',
+      data: steady,
+      borderColor: green,
+      backgroundColor: context => {
+        const chartArea = context.chart.chartArea;
+        if (!chartArea) return 'rgba(47, 125, 69, 0.08)';
+        return makeGradient(context.chart.ctx, chartArea, isDark ? 'rgba(116,196,130,0.22)' : 'rgba(47,125,69,0.18)', 'rgba(47,125,69,0)');
+      },
+      borderWidth: 3,
+      pointRadius: 0,
+      pointHoverRadius: 4,
+      pointHoverBorderWidth: 2,
+      pointHoverBackgroundColor: green,
+      pointHoverBorderColor: isDark ? '#121411' : '#fffdf7',
+      fill: true,
+      tension: 0.26
+    }
+  ];
+
+  if (chart) {
+    chart.data.datasets = datasets;
+    chart.update();
+    return;
+  }
+
+  const atmosphere = {
+    id: 'atmosphere',
+    beforeDraw(ch) {
+      const {ctx, chartArea} = ch;
+      if (!chartArea) return;
+      ctx.save();
+      ctx.fillStyle = isDark ? 'rgba(255,255,255,0.015)' : 'rgba(255,255,255,0.32)';
+      ctx.fillRect(chartArea.left, chartArea.top, chartArea.right - chartArea.left, chartArea.bottom - chartArea.top);
+      ctx.restore();
+    },
+    afterDraw(ch) {
+      const ctx = ch.ctx, xs = ch.scales.x, ys = ch.scales.y;
+      const x0 = xs.getPixelForValue(0), x10 = xs.getPixelForValue(10);
+      ctx.save();
+      ctx.fillStyle = isDark ? 'rgba(116,196,130,0.055)' : 'rgba(47,125,69,0.06)';
+      ctx.fillRect(x0, ys.top, x10 - x0, ys.bottom - ys.top);
+      ctx.fillStyle = isDark ? 'rgba(242,241,234,0.42)' : 'rgba(31,37,32,0.42)';
+      ctx.font = '600 11px Inter, system-ui, sans-serif';
+      ctx.fillText('slow start zone', x0 + 10, ys.top + 20);
+      ctx.restore();
+    },
+    afterDatasetsDraw(ch) {
+      const ctx = ch.ctx, xs = ch.scales.x, ys = ch.scales.y;
+      const steadyDataset = ch.data.datasets[ch.data.datasets.length - 1].data;
+      let steadyY = ys.getPixelForValue(steadyDataset[YRS]);
+      let goalY = ys.getPixelForValue(GOAL);
+      if (Math.abs(steadyY - goalY) < 28) {
+        const steadyAboveGoal = steadyY < goalY;
+        steadyY += steadyAboveGoal ? -14 : 14;
+        goalY += steadyAboveGoal ? 14 : -14;
+      }
+      steadyY = Math.max(ys.top + 14, Math.min(ys.bottom - 14, steadyY));
+      goalY = Math.max(ys.top + 14, Math.min(ys.bottom - 14, goalY));
+      drawRoundedLabel(ctx, 'steady', xs.getPixelForValue(YRS), steadyY, green);
+      drawRoundedLabel(ctx, 'goal', xs.getPixelForValue(YRS), goalY, muted);
+    }
+  };
+
+  chart = new Chart(document.getElementById('wc'), {
+    type: 'line',
+    plugins: [atmosphere],
+    data: {labels, datasets},
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: {duration: 650, easing: 'easeOutQuart'},
+      interaction: {mode: 'index', intersect: false},
+      plugins: {
+        legend: {display: false},
+        tooltip: {
+          mode: 'index',
+          intersect: false,
+          filter: item => item.dataset.label !== '_hr',
+          backgroundColor: isDark ? 'rgba(18,20,17,0.94)' : 'rgba(255,252,245,0.96)',
+          titleColor: text,
+          bodyColor: text,
+          borderColor: border,
+          borderWidth: 1,
+          displayColors: false,
+          padding: 12,
+          callbacks: {
+            title: items => `Year ${items[0].label}`,
+            label: item => `${item.dataset.label}: ${money(item.raw)}`
+          }
+        }
+      },
+      scales: {
+        x: {
+          title: {display: true, text: 'year', color: textC, font: {size: 12, weight: 650}},
+          ticks: {color: textC, font: {size: 11}, maxTicksLimit: 7},
+          grid: {color: gridC, drawTicks: false},
+          border: {display: false}
+        },
+        y: {
+          title: {display: true, text: 'portfolio value', color: textC, font: {size: 12, weight: 650}},
+          ticks: {
+            color: textC,
+            font: {size: 11},
+            padding: 8,
+            callback: v => '$' + (v >= 1000 ? Math.round(v / 1000) + 'k' : v)
+          },
+          grid: {color: gridC, drawTicks: false},
+          border: {display: false}
+        }
+      }
+    }
+  });
+}
+
+buildDecadeBars();
+runSim();
+</script>
