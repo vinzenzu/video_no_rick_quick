@@ -260,6 +260,13 @@
   .viz-swatch.median {
     height: 4px;
     opacity: 1;
+  }
+
+  .viz-swatch.steady.median {
+    box-shadow: 0 0 0 4px var(--viz-blue-soft);
+  }
+
+  .viz-swatch.risk.median {
     box-shadow: 0 0 0 4px var(--viz-risk-soft);
   }
 
@@ -541,13 +548,18 @@
       <div>
         <span class="viz-kicker">30-year simulation</span>
         <h3 class="viz-title">Risk doesn't buy back time</h3>
-        <p class="viz-subtitle">Each run starts with $10,000 and adds $500/month. Green compounds at a disciplined 10%/yr; red chases a 16% headline return with higher volatility, drawdowns, and a small drag from fees, taxes, and bad timing.</p>
+        <p class="viz-subtitle">Each run starts with $10,000 and makes no monthly contributions. Blue compounds at a disciplined 15%/yr; red chases a higher headline return with much higher volatility and deeper drawdowns.</p>
       </div>
       <div class="viz-actions">
         <label class="viz-scale-toggle">
           <input id="scaleToggle" type="checkbox" onchange="setLogScale(this.checked)" aria-label="Use logarithmic portfolio value scale">
           <span class="viz-toggle-track" aria-hidden="true"><span class="viz-toggle-thumb"></span></span>
           <span>Log scale</span>
+        </label>
+        <label class="viz-scale-toggle">
+          <input id="extremeToggle" type="checkbox" onchange="setShowExtremes(this.checked)" aria-label="Show extreme outcome paths">
+          <span class="viz-toggle-track" aria-hidden="true"><span class="viz-toggle-thumb"></span></span>
+          <span>Show extremes</span>
         </label>
         <button class="viz-reroll" onclick="runSim()" type="button" aria-label="Run a new random simulation">
           <span>Roll again</span>
@@ -557,20 +569,21 @@
     </div>
 
     <div class="viz-legend" aria-hidden="true">
-      <span class="viz-legend-item"><span class="viz-swatch steady"></span>disciplined 10%/yr</span>
+      <span class="viz-legend-item"><span class="viz-swatch steady"></span>~15%/yr disciplined outcomes</span>
+      <span class="viz-legend-item"><span class="viz-swatch steady median"></span>~15%/yr disciplined median</span>
       <span class="viz-legend-item"><span class="viz-swatch risk"></span>high-risk outcomes</span>
       <span class="viz-legend-item"><span class="viz-swatch risk median"></span>high-risk median</span>
     </div>
 
     <div class="viz-chart-frame">
-      <canvas id="wc" role="img" aria-label="Line chart comparing disciplined monthly investing with high-risk return chasing over 30 years">The disciplined plan compounds to about $1.2m. The median high-risk result usually finishes lower despite a higher headline return, while a few lucky paths finish higher.</canvas>
+      <canvas id="wc" role="img" aria-label="Line chart comparing disciplined compounding with high-risk return chasing over 30 years">The disciplined median compounds upward with moderate volatility. The median high-risk path trends upward but has much deeper drawdowns, while a few lucky paths finish higher.</canvas>
     </div>
 
     <div class="viz-stats">
       <div class="viz-stat steady">
-        <p class="viz-stat-label">disciplined plan</p>
-        <p class="viz-stat-value" id="steadyV">$1.2m</p>
-        <p class="viz-stat-note">$10k + $500/mo at 10%/yr</p>
+        <p class="viz-stat-label">disciplined median</p>
+        <p class="viz-stat-value" id="steadyV">$662k</p>
+        <p class="viz-stat-note">$10k, 15%/yr, lower volatility</p>
       </div>
       <div class="viz-stat risk">
         <p class="viz-stat-label">median high-risk</p>
@@ -580,14 +593,14 @@
       <div class="viz-stat beat">
         <p class="viz-stat-label">finished ahead</p>
         <p class="viz-stat-value" id="beatV">-</p>
-        <p class="viz-stat-note">high-risk paths above discipline</p>
+        <p class="viz-stat-note">high-risk paths above disciplined median</p>
       </div>
     </div>
 
     <div class="viz-detail-grid">
       <section class="viz-panel" aria-labelledby="gain-title">
         <p class="viz-panel-title" id="gain-title">Where the gains happen</p>
-        <p class="viz-panel-subtitle">After the same $500/month contributions, the last decade does the heavy lifting.</p>
+        <p class="viz-panel-subtitle">With no monthly contributions, the last decade still does the heavy lifting.</p>
         <div id="decBars" class="dec-bars"></div>
       </section>
 
@@ -637,18 +650,38 @@
 <script>
 let chart;
 let useLogScale = false;
+let showExtremePaths = false;
+let simData;
 let yScaleRange = {min: 1, max: 1};
 let yScaleTheme = {textC: '', gridC: ''};
 const YRS = 30;
 const MONTHS = YRS * 12;
 const S0 = 10000;
-const MONTHLY_CONTRIBUTION = 500;
-const DISCIPLINED_RETURN = 0.10;
-const RISK_HEADLINE_RETURN = 0.16;
-const RISK_ANNUAL_VOL = 0.36;
-const RISK_ANNUAL_DRAG = 0.025;
+const DISCIPLINED_RETURN = 0.15;
+const DISCIPLINED_ANNUAL_VOL = 0.16;
+const DISCIPLINED_MONTHLY_LOSS_FLOOR = -0.22;
+const DISCIPLINED_PATH_COUNT = 80;
+const VISIBLE_DISCIPLINED_PATH_COUNT = 8;
+const DISCIPLINED_QUANTILE_LOW = 0.12;
+const DISCIPLINED_QUANTILE_HIGH = 0.70;
+const RISK_HEADLINE_RETURN = 0.30;
+const RISK_ANNUAL_VOL = 0.52;
+const RISK_ANNUAL_DRAG = 0.03;
+const RISK_DRAWDOWN_CHANCE = 0.006;
+const RISK_DRAWDOWN_MIN_MONTHS = 2;
+const RISK_DRAWDOWN_MONTH_RANGE = 4;
+const RISK_DRAWDOWN_LOSS_FLOOR = 0.07;
+const RISK_DRAWDOWN_LOSS_RANGE = 0.11;
+const RISK_MONTHLY_LOSS_FLOOR = -0.52;
 const RISK_PATH_COUNT = 120;
-const VISIBLE_RISK_PATH_COUNT = 24;
+const VISIBLE_RISK_PATH_COUNT = 22;
+const VISIBLE_RISK_EXTREME_PATH_COUNT = 34;
+const DEFAULT_RISK_QUANTILE_LOW = 0;
+const DEFAULT_RISK_QUANTILE_HIGH = 1;
+const DEFAULT_RISK_TROUGH_QUANTILE = 0.08;
+const DEFAULT_RISK_PEAK_QUANTILE = 0.72;
+const EXTREME_RISK_QUANTILE_LOW = 0;
+const EXTREME_RISK_QUANTILE_HIGH = 1;
 const isDark = matchMedia('(prefers-color-scheme: dark)').matches;
 const vizRoot = document.querySelector('.wealth-viz');
 
@@ -706,11 +739,13 @@ function yearlySamples(monthly) {
 }
 
 function disciplinedPath() {
-  const monthlyReturn = Math.pow(1 + DISCIPLINED_RETURN, 1 / 12) - 1;
+  const sigma = DISCIPLINED_ANNUAL_VOL / Math.sqrt(12);
+  const monthlyDrift = Math.log(Math.pow(1 + DISCIPLINED_RETURN, 1 / 12));
   let v = S0;
   const monthly = [v];
   for (let m = 1; m <= MONTHS; m++) {
-    v = v * (1 + monthlyReturn) + MONTHLY_CONTRIBUTION;
+    const r = Math.max(Math.exp(monthlyDrift + sigma * norm()) - 1, DISCIPLINED_MONTHLY_LOSS_FLOOR);
+    v = v * (1 + r);
     monthly.push(v);
   }
   return yearlySamples(monthly);
@@ -726,30 +761,29 @@ function highRiskPath() {
   let drawdown = 0;
 
   for (let m = 1; m <= MONTHS; m++) {
-    if (!drawdown && Math.random() < 0.0035) {
-      drawdown = 2 + Math.floor(Math.random() * 3);
+    if (!drawdown && Math.random() < RISK_DRAWDOWN_CHANCE) {
+      drawdown = RISK_DRAWDOWN_MIN_MONTHS + Math.floor(Math.random() * RISK_DRAWDOWN_MONTH_RANGE);
     }
 
     let r = Math.exp(mu + sigma * norm()) - 1;
     if (drawdown > 0) {
-      r -= 0.045 + Math.random() * 0.075;
+      r -= RISK_DRAWDOWN_LOSS_FLOOR + Math.random() * RISK_DRAWDOWN_LOSS_RANGE;
       drawdown--;
     }
 
-    r = Math.max(r, -0.38);
-    v = v * (1 + r) + MONTHLY_CONTRIBUTION;
+    r = Math.max(r, RISK_MONTHLY_LOSS_FLOOR);
+    v = v * (1 + r);
     monthly.push(v);
   }
 
   return yearlySamples(monthly);
 }
 
-function buildDecadeBars() {
-  const disciplined = disciplinedPath();
+function buildDecadeBars(disciplined) {
   const gains = [
-    disciplined[10] - disciplined[0] - MONTHLY_CONTRIBUTION * 12 * 10,
-    disciplined[20] - disciplined[10] - MONTHLY_CONTRIBUTION * 12 * 10,
-    disciplined[30] - disciplined[20] - MONTHLY_CONTRIBUTION * 12 * 10
+    disciplined[10] - disciplined[0],
+    disciplined[20] - disciplined[10],
+    disciplined[30] - disciplined[20]
   ];
   const max = Math.max(...gains);
   const labels = ['years 1–10', 'years 11–20', 'years 21–30'];
@@ -775,10 +809,30 @@ function percentile(values, p) {
     : sorted[base] + rest * (sorted[base + 1] - sorted[base]);
 }
 
-function representativePaths(paths, count) {
+function medianPath(paths) {
+  return Array.from({length: YRS + 1}, (_, y) => percentile(paths.map(p => p[y]), 0.5));
+}
+
+function pathMin(paths) {
+  return Math.min(...paths.map(path => Math.min(...path)));
+}
+
+function pathMax(paths) {
+  return Math.max(...paths.map(path => Math.max(...path)));
+}
+
+function trimExtremePaths(paths) {
+  const troughCutoff = percentile(paths.map(path => Math.min(...path)), DEFAULT_RISK_TROUGH_QUANTILE);
+  const peakCutoff = percentile(paths.map(path => Math.max(...path)), DEFAULT_RISK_PEAK_QUANTILE);
+  const trimmed = paths.filter(path => Math.min(...path) >= troughCutoff && Math.max(...path) <= peakCutoff);
+  return trimmed.length >= VISIBLE_RISK_PATH_COUNT ? trimmed : paths;
+}
+
+function representativePaths(paths, count, low = 0.05, high = 0.9) {
   const sorted = [...paths].sort((a, b) => a[YRS] - b[YRS]);
-  return Array.from({length: count}, (_, i) => {
-    const q = 0.05 + (i / Math.max(1, count - 1)) * 0.85;
+  const sampleCount = Math.min(count, sorted.length);
+  return Array.from({length: sampleCount}, (_, i) => {
+    const q = low + (i / Math.max(1, sampleCount - 1)) * (high - low);
     return sorted[Math.round(q * (sorted.length - 1))];
   });
 }
@@ -819,6 +873,11 @@ function setLogScale(enabled) {
   chart.update();
 }
 
+function setShowExtremes(enabled) {
+  showExtremePaths = enabled;
+  renderSim();
+}
+
 function drawRoundedLabel(ctx, text, x, y, color) {
   ctx.save();
   ctx.font = '600 11px Inter, system-ui, sans-serif';
@@ -855,20 +914,49 @@ function roundedRect(ctx, left, top, width, height, radius) {
   ctx.quadraticCurveTo(left, top, left + r, top);
 }
 
-function runSim() {
+function buildSimulation() {
   const labels = Array.from({length: YRS + 1}, (_, i) => i);
-  const steady = disciplinedPath();
-  const paths = Array.from({length: RISK_PATH_COUNT}, highRiskPath);
-  const visiblePaths = representativePaths(paths, VISIBLE_RISK_PATH_COUNT);
-  const finals = paths.map(p => p[YRS]);
-  const medianPath = labels.map(y => percentile(paths.map(p => p[y]), 0.5));
-  const disciplinedFinal = steady[YRS];
-  const medianFinal = percentile(finals, 0.5);
-  const beatRate = Math.round(paths.filter(p => p[YRS] > disciplinedFinal).length / paths.length * 100);
+  const disciplinedPaths = Array.from({length: DISCIPLINED_PATH_COUNT}, disciplinedPath);
+  const riskPaths = Array.from({length: RISK_PATH_COUNT}, highRiskPath);
+  return {
+    labels,
+    disciplinedPaths,
+    riskPaths,
+    disciplinedMedianPath: medianPath(disciplinedPaths),
+    riskMedianPath: medianPath(riskPaths)
+  };
+}
+
+function runSim() {
+  simData = buildSimulation();
+  renderSim();
+}
+
+function renderSim() {
+  if (!simData) return;
+
+  const {labels, disciplinedPaths, riskPaths, disciplinedMedianPath, riskMedianPath} = simData;
+  const riskLow = showExtremePaths ? EXTREME_RISK_QUANTILE_LOW : DEFAULT_RISK_QUANTILE_LOW;
+  const riskHigh = showExtremePaths ? EXTREME_RISK_QUANTILE_HIGH : DEFAULT_RISK_QUANTILE_HIGH;
+  const riskCount = showExtremePaths ? VISIBLE_RISK_EXTREME_PATH_COUNT : VISIBLE_RISK_PATH_COUNT;
+  const riskDisplayPool = showExtremePaths ? riskPaths : trimExtremePaths(riskPaths);
+  const visibleRiskPaths = representativePaths(riskDisplayPool, riskCount, riskLow, riskHigh);
+  const visibleDisciplinedPaths = representativePaths(
+    disciplinedPaths,
+    VISIBLE_DISCIPLINED_PATH_COUNT,
+    DISCIPLINED_QUANTILE_LOW,
+    DISCIPLINED_QUANTILE_HIGH
+  );
+  const riskFinals = riskPaths.map(p => p[YRS]);
+  const disciplinedFinals = disciplinedPaths.map(p => p[YRS]);
+  const disciplinedFinal = percentile(disciplinedFinals, 0.5);
+  const riskFinal = percentile(riskFinals, 0.5);
+  const beatRate = Math.round(riskFinals.filter(v => v > disciplinedFinal).length / riskFinals.length * 100);
 
   document.getElementById('steadyV').textContent = moneyShort(disciplinedFinal);
-  document.getElementById('medV').textContent = moneyShort(medianFinal);
+  document.getElementById('medV').textContent = moneyShort(riskFinal);
   document.getElementById('beatV').textContent = beatRate + '%';
+  buildDecadeBars(disciplinedMedianPath);
 
   const blue = resolvedColor('--viz-blue', '#0047ab');
   const risk = resolvedColor('--viz-risk', '#bd4b45');
@@ -876,15 +964,16 @@ function runSim() {
   const border = resolvedColor('--viz-border', '#b8c7dc');
   const textC = isDark ? 'rgba(241,246,255,0.68)' : 'rgba(23,34,56,0.58)';
   const gridC = isDark ? 'rgba(255,255,255,0.07)' : 'rgba(23,34,56,0.075)';
-  const yFloor = Math.min(...steady, ...paths.map(path => Math.min(...path)));
+  const scalePaths = [...visibleRiskPaths, ...visibleDisciplinedPaths, riskMedianPath, disciplinedMedianPath];
+  const yFloor = pathMin(scalePaths);
   yScaleTheme = {textC, gridC};
   yScaleRange = {
     min: Math.max(1, yFloor * 0.86),
-    max: Math.max(disciplinedFinal, percentile(finals, 0.9)) * 1.12
+    max: pathMax(scalePaths) * 1.12
   };
 
   const datasets = [
-    ...visiblePaths.map((path, i) => ({
+    ...visibleRiskPaths.map((path, i) => ({
       data: path,
       borderColor: withAlpha(risk, i % 3 === 0 ? 0.26 : 0.18),
       borderWidth: i % 4 === 0 ? 1.5 : 1.15,
@@ -892,11 +981,21 @@ function runSim() {
       pointHoverRadius: 0,
       fill: false,
       tension: 0.24,
-      label: '_hr'
+      label: '_risk'
+    })),
+    ...visibleDisciplinedPaths.map((path, i) => ({
+      data: path,
+      borderColor: withAlpha(blue, i % 3 === 0 ? 0.28 : 0.18),
+      borderWidth: i % 4 === 0 ? 1.45 : 1.1,
+      pointRadius: 0,
+      pointHoverRadius: 0,
+      fill: false,
+      tension: 0.18,
+      label: '_discipline'
     })),
     {
       label: 'high-risk median',
-      data: medianPath,
+      data: riskMedianPath,
       borderColor: risk,
       borderWidth: 2.5,
       pointRadius: 0,
@@ -907,8 +1006,8 @@ function runSim() {
       tension: 0.24
     },
     {
-      label: 'disciplined 10%/yr',
-      data: steady,
+      label: 'disciplined median',
+      data: disciplinedMedianPath,
       borderColor: blue,
       backgroundColor: context => {
         const chartArea = context.chart.chartArea;
@@ -956,7 +1055,7 @@ function runSim() {
     },
     afterDatasetsDraw(ch) {
       const ctx = ch.ctx, xs = ch.scales.x, ys = ch.scales.y;
-      const steadyDataset = ch.data.datasets.find(ds => ds.label === 'disciplined 10%/yr')?.data;
+      const steadyDataset = ch.data.datasets.find(ds => ds.label === 'disciplined median')?.data;
       const medianDataset = ch.data.datasets.find(ds => ds.label === 'high-risk median')?.data;
       if (!steadyDataset || !medianDataset) return;
       let steadyY = ys.getPixelForValue(steadyDataset[YRS]);
@@ -968,7 +1067,7 @@ function runSim() {
       }
       steadyY = Math.max(ys.top + 14, Math.min(ys.bottom - 14, steadyY));
       medianY = Math.max(ys.top + 14, Math.min(ys.bottom - 14, medianY));
-      drawRoundedLabel(ctx, 'discipline', xs.getPixelForValue(YRS), steadyY, blue);
+      drawRoundedLabel(ctx, 'discipline median', xs.getPixelForValue(YRS), steadyY, blue);
       drawRoundedLabel(ctx, 'risk median', xs.getPixelForValue(YRS), medianY, risk);
     }
   };
@@ -987,7 +1086,7 @@ function runSim() {
         tooltip: {
           mode: 'index',
           intersect: false,
-          filter: item => item.dataset.label !== '_hr',
+          filter: item => !item.dataset.label.startsWith('_'),
           backgroundColor: isDark ? 'rgba(9,21,37,0.94)' : 'rgba(247,250,255,0.96)',
           titleColor: text,
           bodyColor: text,
@@ -1016,6 +1115,5 @@ function runSim() {
   });
 }
 
-buildDecadeBars();
 runSim();
 </script>
