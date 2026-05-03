@@ -127,6 +127,84 @@
     transition: transform 150ms ease, border-color 150ms ease, background 150ms ease;
   }
 
+  .viz-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .viz-scale-toggle {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 38px;
+    border: 1px solid var(--viz-border);
+    border-radius: 8px;
+    background: var(--viz-panel);
+    color: var(--viz-muted);
+    padding: 0 11px;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 650;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: transform 150ms ease, border-color 150ms ease, background 150ms ease, color 150ms ease;
+  }
+
+  .viz-scale-toggle:hover {
+    transform: translateY(-1px);
+    border-color: color-mix(in srgb, var(--viz-blue) 52%, var(--viz-border));
+    background: var(--viz-panel-strong);
+    color: var(--viz-text);
+  }
+
+  .viz-scale-toggle input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+  }
+
+  .viz-toggle-track {
+    display: inline-flex;
+    align-items: center;
+    width: 36px;
+    height: 20px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--viz-muted) 22%, transparent);
+    box-shadow: inset 0 0 0 1px var(--viz-border);
+    transition: background 150ms ease, box-shadow 150ms ease;
+  }
+
+  .viz-toggle-thumb {
+    width: 14px;
+    height: 14px;
+    margin-left: 3px;
+    border-radius: 999px;
+    background: var(--viz-panel);
+    box-shadow: 0 1px 4px rgba(23, 34, 56, 0.25);
+    transition: transform 150ms ease, background 150ms ease;
+  }
+
+  .viz-scale-toggle input:checked + .viz-toggle-track {
+    background: var(--viz-blue);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--viz-blue) 72%, #ffffff);
+  }
+
+  .viz-scale-toggle input:checked + .viz-toggle-track .viz-toggle-thumb {
+    transform: translateX(16px);
+    background: #ffffff;
+  }
+
+  .viz-scale-toggle input:focus-visible + .viz-toggle-track {
+    outline: 2px solid var(--viz-blue);
+    outline-offset: 3px;
+  }
+
   .viz-reroll:hover {
     transform: translateY(-1px);
     border-color: color-mix(in srgb, var(--viz-blue) 52%, var(--viz-border));
@@ -406,6 +484,16 @@
       width: 100%;
     }
 
+    .viz-actions {
+      width: 100%;
+      flex-direction: column;
+      align-items: stretch;
+    }
+
+    .viz-scale-toggle {
+      width: 100%;
+    }
+
     .viz-title {
       font-size: 28px;
     }
@@ -455,10 +543,17 @@
         <h3 class="viz-title">Risk doesn't buy back time</h3>
         <p class="viz-subtitle">Each run starts with $10,000 and adds $500/month. Green compounds at a disciplined 10%/yr; red chases a 16% headline return with higher volatility, drawdowns, and a small drag from fees, taxes, and bad timing.</p>
       </div>
-      <button class="viz-reroll" onclick="runSim()" type="button" aria-label="Run a new random simulation">
-        <span>Roll again</span>
-        <span aria-hidden="true">↻</span>
-      </button>
+      <div class="viz-actions">
+        <label class="viz-scale-toggle">
+          <input id="scaleToggle" type="checkbox" onchange="setLogScale(this.checked)" aria-label="Use logarithmic portfolio value scale">
+          <span class="viz-toggle-track" aria-hidden="true"><span class="viz-toggle-thumb"></span></span>
+          <span>Log scale</span>
+        </label>
+        <button class="viz-reroll" onclick="runSim()" type="button" aria-label="Run a new random simulation">
+          <span>Roll again</span>
+          <span aria-hidden="true">↻</span>
+        </button>
+      </div>
     </div>
 
     <div class="viz-legend" aria-hidden="true">
@@ -529,6 +624,9 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <script>
 let chart;
+let useLogScale = false;
+let yScaleRange = {min: 1, max: 1};
+let yScaleTheme = {textC: '', gridC: ''};
 const YRS = 30;
 const MONTHS = YRS * 12;
 const S0 = 10000;
@@ -680,6 +778,35 @@ function makeGradient(ctx, area, top, bottom) {
   return gradient;
 }
 
+function yScaleOptions() {
+  const scale = {
+    type: useLogScale ? 'logarithmic' : 'linear',
+    suggestedMax: yScaleRange.max,
+    title: {display: true, text: 'portfolio value', color: yScaleTheme.textC, font: {size: 12, weight: 650}},
+    ticks: {
+      color: yScaleTheme.textC,
+      font: {size: 11},
+      padding: 8,
+      callback: v => moneyShort(Number(v))
+    },
+    grid: {color: yScaleTheme.gridC, drawTicks: false},
+    border: {display: false}
+  };
+
+  if (useLogScale) {
+    scale.min = yScaleRange.min;
+  }
+
+  return scale;
+}
+
+function setLogScale(enabled) {
+  useLogScale = enabled;
+  if (!chart) return;
+  chart.options.scales.y = yScaleOptions();
+  chart.update();
+}
+
 function drawRoundedLabel(ctx, text, x, y, color) {
   ctx.save();
   ctx.font = '600 11px Inter, system-ui, sans-serif';
@@ -737,6 +864,12 @@ function runSim() {
   const border = resolvedColor('--viz-border', '#b8c7dc');
   const textC = isDark ? 'rgba(241,246,255,0.68)' : 'rgba(23,34,56,0.58)';
   const gridC = isDark ? 'rgba(255,255,255,0.07)' : 'rgba(23,34,56,0.075)';
+  const yFloor = Math.min(...steady, ...paths.map(path => Math.min(...path)));
+  yScaleTheme = {textC, gridC};
+  yScaleRange = {
+    min: Math.max(1, yFloor * 0.86),
+    max: Math.max(disciplinedFinal, percentile(finals, 0.9)) * 1.12
+  };
 
   const datasets = [
     ...visiblePaths.map((path, i) => ({
@@ -783,7 +916,7 @@ function runSim() {
 
   if (chart) {
     chart.data.datasets = datasets;
-    chart.options.scales.y.suggestedMax = Math.max(disciplinedFinal, percentile(finals, 0.9)) * 1.12;
+    chart.options.scales.y = yScaleOptions();
     chart.update();
     return;
   }
@@ -864,16 +997,7 @@ function runSim() {
           border: {display: false}
         },
         y: {
-          suggestedMax: Math.max(disciplinedFinal, percentile(finals, 0.9)) * 1.12,
-          title: {display: true, text: 'portfolio value', color: textC, font: {size: 12, weight: 650}},
-          ticks: {
-            color: textC,
-            font: {size: 11},
-            padding: 8,
-            callback: v => moneyShort(v)
-          },
-          grid: {color: gridC, drawTicks: false},
-          border: {display: false}
+          ...yScaleOptions()
         }
       }
     }
