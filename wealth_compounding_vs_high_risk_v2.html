@@ -179,10 +179,10 @@
     opacity: 0.62;
   }
 
-  .viz-swatch.goal {
-    height: 0;
-    border-top: 2px dashed var(--viz-muted);
-    background: transparent;
+  .viz-swatch.median {
+    height: 4px;
+    opacity: 1;
+    box-shadow: 0 0 0 4px var(--viz-risk-soft);
   }
 
   .viz-chart-frame {
@@ -227,7 +227,7 @@
     padding: 13px;
   }
 
-  .viz-stat.goal {
+  .viz-stat.steady {
     background: linear-gradient(135deg, var(--viz-panel-strong), var(--viz-panel));
   }
 
@@ -249,12 +249,12 @@
     background: var(--viz-muted);
   }
 
-  .viz-stat.goal .viz-stat-label::before {
+  .viz-stat.steady .viz-stat-label::before {
     background: var(--viz-green);
   }
 
   .viz-stat.risk .viz-stat-label::before,
-  .viz-stat.best .viz-stat-label::before {
+  .viz-stat.beat .viz-stat-label::before {
     background: var(--viz-risk);
   }
 
@@ -447,13 +447,13 @@
 
 <section class="wealth-viz">
   <div class="viz-shell">
-    <h2 class="sr-only">Simulation comparing volatile steady 15% compounding versus high-risk strategies over 30 years</h2>
+    <h2 class="sr-only">Simulation comparing disciplined compounding versus high-risk return chasing over 30 years</h2>
 
     <div class="viz-topline">
       <div>
         <span class="viz-kicker">30-year simulation</span>
-        <h3 class="viz-title">Compounding rewards staying power</h3>
-        <p class="viz-subtitle">Each run starts with $10,000. The green path is a volatile 15% compounder; the red paths chase higher-risk returns and show how drawdowns can dominate the outcome.</p>
+        <h3 class="viz-title">Risk doesn't buy back time</h3>
+        <p class="viz-subtitle">Each run starts with $10,000 and adds $500/month. Green compounds at a disciplined 10%/yr; red chases a 16% headline return with higher volatility, drawdowns, and a small drag from fees, taxes, and bad timing.</p>
       </div>
       <button class="viz-reroll" onclick="runSim()" type="button" aria-label="Run a new random simulation">
         <span>Roll again</span>
@@ -462,43 +462,43 @@
     </div>
 
     <div class="viz-legend" aria-hidden="true">
-      <span class="viz-legend-item"><span class="viz-swatch steady"></span>steady ~15%/yr</span>
-      <span class="viz-legend-item"><span class="viz-swatch risk"></span>high-risk paths ×10</span>
-      <span class="viz-legend-item"><span class="viz-swatch goal"></span>goal</span>
+      <span class="viz-legend-item"><span class="viz-swatch steady"></span>disciplined 10%/yr</span>
+      <span class="viz-legend-item"><span class="viz-swatch risk"></span>high-risk outcomes</span>
+      <span class="viz-legend-item"><span class="viz-swatch risk median"></span>high-risk median</span>
     </div>
 
     <div class="viz-chart-frame">
-      <canvas id="wc" role="img" aria-label="Line chart: a volatile steady 15% per year portfolio typically outperforms high-risk paths despite both trending upward">Both paths grow, but steady 15% per year compounding with low volatility typically reaches about $662k after 30 years. High-risk paths trend upward but more slowly in median, with far wider variance.</canvas>
+      <canvas id="wc" role="img" aria-label="Line chart comparing disciplined monthly investing with high-risk return chasing over 30 years">The disciplined plan compounds to about $1.2m. The median high-risk result usually finishes lower despite a higher headline return, while a few lucky paths finish higher.</canvas>
     </div>
 
     <div class="viz-stats">
-      <div class="viz-stat goal">
-        <p class="viz-stat-label">steady goal</p>
-        <p class="viz-stat-value">$662k</p>
-        <p class="viz-stat-note">15% compounded for 30 years</p>
+      <div class="viz-stat steady">
+        <p class="viz-stat-label">disciplined plan</p>
+        <p class="viz-stat-value" id="steadyV">$1.2m</p>
+        <p class="viz-stat-note">$10k + $500/mo at 10%/yr</p>
       </div>
       <div class="viz-stat risk">
         <p class="viz-stat-label">median high-risk</p>
-        <p class="viz-stat-value" id="medV">—</p>
-        <p class="viz-stat-note">middle result from this roll</p>
+        <p class="viz-stat-value" id="medV">-</p>
+        <p class="viz-stat-note">middle result from 120 paths</p>
       </div>
-      <div class="viz-stat best">
-        <p class="viz-stat-label">best high-risk</p>
-        <p class="viz-stat-value" id="bestV">—</p>
-        <p class="viz-stat-note">highest result from 10 paths</p>
+      <div class="viz-stat beat">
+        <p class="viz-stat-label">finished ahead</p>
+        <p class="viz-stat-value" id="beatV">-</p>
+        <p class="viz-stat-note">high-risk paths above discipline</p>
       </div>
     </div>
 
     <div class="viz-detail-grid">
       <section class="viz-panel" aria-labelledby="gain-title">
         <p class="viz-panel-title" id="gain-title">Where the gains happen</p>
-        <p class="viz-panel-subtitle">The last decade carries most of the dollar growth.</p>
+        <p class="viz-panel-subtitle">After the same $500/month contributions, the last decade does the heavy lifting.</p>
         <div id="decBars" class="dec-bars"></div>
       </section>
 
       <section class="viz-panel" aria-labelledby="trap-title">
-        <p class="viz-panel-title" id="trap-title">The recovery trap</p>
-        <p class="viz-panel-subtitle">A loss needs a larger percentage gain just to break even.</p>
+        <p class="viz-panel-title" id="trap-title">Drawdowns steal time</p>
+        <p class="viz-panel-subtitle">A loss has to earn more than it lost just to recover.</p>
         <table class="recovery-table">
           <thead>
             <tr>
@@ -508,16 +508,16 @@
           </thead>
           <tbody>
             <tr>
-              <td>−10%</td><td>+11.1%</td>
+              <td>-10%</td><td>+11.1%</td>
             </tr>
             <tr>
-              <td>−25%</td><td>+33.3%</td>
+              <td>-20%</td><td>+25.0%</td>
             </tr>
             <tr class="stress">
-              <td>−50%</td><td>+100%</td>
+              <td>-30%</td><td>+42.9%</td>
             </tr>
             <tr class="stress">
-              <td>−75%</td><td>+300%</td>
+              <td>-40%</td><td>+66.7%</td>
             </tr>
           </tbody>
         </table>
@@ -530,9 +530,16 @@
 <script>
 let chart;
 const YRS = 30;
+const MONTHS = YRS * 12;
 const S0 = 10000;
+const MONTHLY_CONTRIBUTION = 500;
+const DISCIPLINED_RETURN = 0.10;
+const RISK_HEADLINE_RETURN = 0.16;
+const RISK_ANNUAL_VOL = 0.36;
+const RISK_ANNUAL_DRAG = 0.025;
+const RISK_PATH_COUNT = 120;
+const VISIBLE_RISK_PATH_COUNT = 24;
 const isDark = matchMedia('(prefers-color-scheme: dark)').matches;
-const GOAL = Math.round(S0 * Math.pow(1.15, YRS));
 const vizRoot = document.querySelector('.wealth-viz');
 
 function resolvedColor(name, fallback) {
@@ -566,7 +573,15 @@ function money(value) {
 }
 
 function moneyShort(value) {
-  return '$' + Math.round(value / 1000).toLocaleString() + 'k';
+  if (value >= 999500) {
+    const millions = value / 1000000;
+    const digits = millions >= 10 ? 0 : 1;
+    return '$' + millions.toFixed(digits).replace(/\.0$/, '') + 'm';
+  }
+  if (value >= 1000) {
+    return '$' + Math.round(value / 1000).toLocaleString() + 'k';
+  }
+  return '$' + Math.round(value).toLocaleString();
 }
 
 function norm() {
@@ -576,51 +591,56 @@ function norm() {
   return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v);
 }
 
-function steadyPath() {
-  // 15%/yr geometric target, ~12% annual vol — wiggles but trends strongly up
-  const annualVol = 0.12;
-  const sigma = annualVol / Math.sqrt(12);
-  const mu = (0.15 / 12) - 0.5 * sigma * sigma;
+function yearlySamples(monthly) {
+  return Array.from({length: YRS + 1}, (_, y) => monthly[y * 12]);
+}
+
+function disciplinedPath() {
+  const monthlyReturn = Math.pow(1 + DISCIPLINED_RETURN, 1 / 12) - 1;
   let v = S0;
   const monthly = [v];
-  for (let m = 1; m <= YRS * 12; m++) {
-    v = Math.max(v * Math.exp(mu + sigma * norm()), 10);
+  for (let m = 1; m <= MONTHS; m++) {
+    v = v * (1 + monthlyReturn) + MONTHLY_CONTRIBUTION;
     monthly.push(v);
   }
-  return Array.from({length: YRS + 1}, (_, y) => monthly[y * 12]);
+  return yearlySamples(monthly);
 }
 
 function highRiskPath() {
-  // Geometric drift ~8%/yr, vol ~65% — goes up but far slower in median, huge swings
-  const annualVol = 0.65;
-  const sigma = annualVol / Math.sqrt(12);
-  // geometric target: 8%/yr  →  log mu = 0.08/12
-  const mu = 0.08 / 12;
+  // Higher headline return, but volatility drag, stress months, and behavior/tax/fee drag slow the median.
+  const sigma = RISK_ANNUAL_VOL / Math.sqrt(12);
+  const headlineMonthly = Math.pow(1 + RISK_HEADLINE_RETURN, 1 / 12) - 1;
+  const mu = Math.log(1 + headlineMonthly) - (RISK_ANNUAL_DRAG / 12) - 0.5 * sigma * sigma;
   let v = S0;
   const monthly = [v];
-  let crash = 0;
-  for (let m = 1; m <= YRS * 12; m++) {
-    if (!crash && Math.random() < 0.010) crash = 4 + Math.floor(Math.random() * 6);
-    let r;
-    if (crash > 0) {
-      // sharp drawdown but not total wipeout — 8-14% monthly loss
-      r = -0.08 - Math.random() * 0.06;
-      crash--;
-    } else {
-      r = Math.exp(mu + sigma * norm()) - 1;
+  let drawdown = 0;
+
+  for (let m = 1; m <= MONTHS; m++) {
+    if (!drawdown && Math.random() < 0.0035) {
+      drawdown = 2 + Math.floor(Math.random() * 3);
     }
-    v = Math.max(v * (1 + r), 50);
+
+    let r = Math.exp(mu + sigma * norm()) - 1;
+    if (drawdown > 0) {
+      r -= 0.045 + Math.random() * 0.075;
+      drawdown--;
+    }
+
+    r = Math.max(r, -0.38);
+    v = v * (1 + r) + MONTHLY_CONTRIBUTION;
     monthly.push(v);
   }
-  return Array.from({length: YRS + 1}, (_, y) => monthly[y * 12]);
+
+  return yearlySamples(monthly);
 }
 
 function buildDecadeBars() {
-  const v0 = S0;
-  const v10 = S0 * Math.pow(1.15, 10);
-  const v20 = S0 * Math.pow(1.15, 20);
-  const v30 = S0 * Math.pow(1.15, 30);
-  const gains = [v10 - v0, v20 - v10, v30 - v20];
+  const disciplined = disciplinedPath();
+  const gains = [
+    disciplined[10] - disciplined[0] - MONTHLY_CONTRIBUTION * 12 * 10,
+    disciplined[20] - disciplined[10] - MONTHLY_CONTRIBUTION * 12 * 10,
+    disciplined[30] - disciplined[20] - MONTHLY_CONTRIBUTION * 12 * 10
+  ];
   const max = Math.max(...gains);
   const labels = ['years 1–10', 'years 11–20', 'years 21–30'];
   const fills = ['#b9b6ac', resolvedColor('--viz-amber', '#b8792a'), resolvedColor('--viz-green', '#2f7d45')];
@@ -632,6 +652,24 @@ function buildDecadeBars() {
     row.className = 'dec-row';
     row.innerHTML = `<span class="dec-label">${labels[i]}</span><div class="dec-track"><div class="dec-fill" style="width:${pct}%;background:${fills[i]};"></div></div><span class="dec-value">+${moneyShort(g)}</span>`;
     el.appendChild(row);
+  });
+}
+
+function percentile(values, p) {
+  const sorted = [...values].sort((a, b) => a - b);
+  const pos = (sorted.length - 1) * p;
+  const base = Math.floor(pos);
+  const rest = pos - base;
+  return sorted[base + 1] === undefined
+    ? sorted[base]
+    : sorted[base] + rest * (sorted[base + 1] - sorted[base]);
+}
+
+function representativePaths(paths, count) {
+  const sorted = [...paths].sort((a, b) => a[YRS] - b[YRS]);
+  return Array.from({length: count}, (_, i) => {
+    const q = 0.05 + (i / Math.max(1, count - 1)) * 0.85;
+    return sorted[Math.round(q * (sorted.length - 1))];
   });
 }
 
@@ -680,26 +718,31 @@ function roundedRect(ctx, left, top, width, height, radius) {
 
 function runSim() {
   const labels = Array.from({length: YRS + 1}, (_, i) => i);
-  const steady = steadyPath();
-  const paths = Array.from({length: 10}, highRiskPath);
-  const finals = paths.map(p => p[YRS]).sort((a, b) => a - b);
+  const steady = disciplinedPath();
+  const paths = Array.from({length: RISK_PATH_COUNT}, highRiskPath);
+  const visiblePaths = representativePaths(paths, VISIBLE_RISK_PATH_COUNT);
+  const finals = paths.map(p => p[YRS]);
+  const medianPath = labels.map(y => percentile(paths.map(p => p[y]), 0.5));
+  const disciplinedFinal = steady[YRS];
+  const medianFinal = percentile(finals, 0.5);
+  const beatRate = Math.round(paths.filter(p => p[YRS] > disciplinedFinal).length / paths.length * 100);
 
-  document.getElementById('medV').textContent = money(finals[4]);
-  document.getElementById('bestV').textContent = money(finals[9]);
+  document.getElementById('steadyV').textContent = moneyShort(disciplinedFinal);
+  document.getElementById('medV').textContent = moneyShort(medianFinal);
+  document.getElementById('beatV').textContent = beatRate + '%';
 
   const green = resolvedColor('--viz-green', '#2f7d45');
   const risk = resolvedColor('--viz-risk', '#bd4b45');
-  const muted = resolvedColor('--viz-muted', '#697067');
   const text = resolvedColor('--viz-text', '#1f2520');
   const border = resolvedColor('--viz-border', '#d8d2c8');
   const textC = isDark ? 'rgba(242,241,234,0.68)' : 'rgba(31,37,32,0.58)';
   const gridC = isDark ? 'rgba(255,255,255,0.07)' : 'rgba(31,37,32,0.075)';
 
   const datasets = [
-    ...paths.map((path, i) => ({
+    ...visiblePaths.map((path, i) => ({
       data: path,
-      borderColor: withAlpha(risk, i % 3 === 0 ? 0.34 : 0.24),
-      borderWidth: i % 4 === 0 ? 1.8 : 1.35,
+      borderColor: withAlpha(risk, i % 3 === 0 ? 0.26 : 0.18),
+      borderWidth: i % 4 === 0 ? 1.5 : 1.15,
       pointRadius: 0,
       pointHoverRadius: 0,
       fill: false,
@@ -707,16 +750,19 @@ function runSim() {
       label: '_hr'
     })),
     {
-      label: 'goal ($662k)',
-      data: labels.map(() => GOAL),
-      borderColor: isDark ? 'rgba(242,241,234,0.38)' : 'rgba(105,112,103,0.52)',
-      borderWidth: 1.5,
-      borderDash: [7, 6],
+      label: 'high-risk median',
+      data: medianPath,
+      borderColor: risk,
+      borderWidth: 2.5,
       pointRadius: 0,
-      fill: false
+      pointHoverRadius: 3,
+      pointHoverBackgroundColor: risk,
+      pointHoverBorderColor: isDark ? '#121411' : '#fffdf7',
+      fill: false,
+      tension: 0.24
     },
     {
-      label: 'steady ~15%/yr',
+      label: 'disciplined 10%/yr',
       data: steady,
       borderColor: green,
       backgroundColor: context => {
@@ -737,6 +783,7 @@ function runSim() {
 
   if (chart) {
     chart.data.datasets = datasets;
+    chart.options.scales.y.suggestedMax = Math.max(disciplinedFinal, percentile(finals, 0.9)) * 1.12;
     chart.update();
     return;
   }
@@ -764,18 +811,20 @@ function runSim() {
     },
     afterDatasetsDraw(ch) {
       const ctx = ch.ctx, xs = ch.scales.x, ys = ch.scales.y;
-      const steadyDataset = ch.data.datasets[ch.data.datasets.length - 1].data;
+      const steadyDataset = ch.data.datasets.find(ds => ds.label === 'disciplined 10%/yr')?.data;
+      const medianDataset = ch.data.datasets.find(ds => ds.label === 'high-risk median')?.data;
+      if (!steadyDataset || !medianDataset) return;
       let steadyY = ys.getPixelForValue(steadyDataset[YRS]);
-      let goalY = ys.getPixelForValue(GOAL);
-      if (Math.abs(steadyY - goalY) < 28) {
-        const steadyAboveGoal = steadyY < goalY;
-        steadyY += steadyAboveGoal ? -14 : 14;
-        goalY += steadyAboveGoal ? 14 : -14;
+      let medianY = ys.getPixelForValue(medianDataset[YRS]);
+      if (Math.abs(steadyY - medianY) < 28) {
+        const steadyAboveMedian = steadyY < medianY;
+        steadyY += steadyAboveMedian ? -14 : 14;
+        medianY += steadyAboveMedian ? 14 : -14;
       }
       steadyY = Math.max(ys.top + 14, Math.min(ys.bottom - 14, steadyY));
-      goalY = Math.max(ys.top + 14, Math.min(ys.bottom - 14, goalY));
-      drawRoundedLabel(ctx, 'steady', xs.getPixelForValue(YRS), steadyY, green);
-      drawRoundedLabel(ctx, 'goal', xs.getPixelForValue(YRS), goalY, muted);
+      medianY = Math.max(ys.top + 14, Math.min(ys.bottom - 14, medianY));
+      drawRoundedLabel(ctx, 'discipline', xs.getPixelForValue(YRS), steadyY, green);
+      drawRoundedLabel(ctx, 'risk median', xs.getPixelForValue(YRS), medianY, risk);
     }
   };
 
@@ -815,12 +864,13 @@ function runSim() {
           border: {display: false}
         },
         y: {
+          suggestedMax: Math.max(disciplinedFinal, percentile(finals, 0.9)) * 1.12,
           title: {display: true, text: 'portfolio value', color: textC, font: {size: 12, weight: 650}},
           ticks: {
             color: textC,
             font: {size: 11},
             padding: 8,
-            callback: v => '$' + (v >= 1000 ? Math.round(v / 1000) + 'k' : v)
+            callback: v => moneyShort(v)
           },
           grid: {color: gridC, drawTicks: false},
           border: {display: false}
